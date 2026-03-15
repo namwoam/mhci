@@ -191,7 +191,12 @@ const dino = {
 
         // Gravity
         if (this.y + this.height < canvas.height) {
-            this.dy += 0.6; // Gravity strength
+            // Apply extra gravity if ducking to fall faster
+            if (this.isDucking) {
+                this.dy += 2.0; 
+            } else {
+                this.dy += 0.6; // Normal gravity
+            }
             this.grounded = false;
         } else {
             this.dy = 0;
