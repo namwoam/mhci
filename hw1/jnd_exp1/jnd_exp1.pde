@@ -26,7 +26,7 @@ void setup() {
 void draw() {
   fill(0);
   textSize(25);
-  text("ADT study", 30, 30);
+  text("A JND study", 30, 30);
 }
 
 void keyPressed(){

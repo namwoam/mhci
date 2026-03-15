@@ -1,0 +1,308 @@
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreElement = document.getElementById('score');
+
+// Sound
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playJumpSound() {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
+function playDuckSound() {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(400, audioCtx.currentTime); 
+    oscillator.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
+function playDeathSound() {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.3);
+}
+
+function playScoreSound() {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+
+    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); 
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
+// Game Variables
+let gameSpeed = 5;
+let score = 0;
+let gameOver = false;
+let animationId;
+
+// Dino
+const dino = {
+    x: 50,
+    y: 150,
+    width: 30,
+    height: 30,
+    originalHeight: 30,
+    duckHeight: 15, // Reduced height for ducking
+    isDucking: false,
+    dy: 0,
+    jumpStrength: 12,
+    grounded: false,
+    color: '#000000', // Black dino
+    draw: function() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    },
+    update: function() {
+        // Duck Logic
+        if (keys['ArrowDown'] || keys['KeyS']) {
+            if (!this.isDucking) {
+                this.height = this.duckHeight;
+                this.y += (this.originalHeight - this.duckHeight);
+                this.isDucking = true;
+                playDuckSound();
+            }
+        } else {
+            if (this.isDucking) {
+                this.height = this.originalHeight;
+                this.y -= (this.originalHeight - this.duckHeight);
+                this.isDucking = false;
+            }
+        }
+
+        // Jump Logic
+        if (keys['Space'] || keys['ArrowUp']) {
+            this.jump();
+        }
+
+        this.y += this.dy;
+
+        // Gravity
+        if (this.y + this.height < canvas.height) {
+            this.dy += 0.6; // Gravity strength
+            this.grounded = false;
+        } else {
+            this.dy = 0;
+            this.grounded = true;
+            this.y = canvas.height - this.height; // Snap to ground
+        }
+        
+        this.draw();
+    },
+    jump: function() {
+        if (this.grounded) {
+            this.dy = -this.jumpStrength;
+            this.grounded = false;
+            playJumpSound();
+        }
+    }
+};
+
+// Input Handling
+const keys = {};
+window.addEventListener('keydown', function(e) {
+    keys[e.code] = true;
+});
+window.addEventListener('keyup', function(e) {
+    keys[e.code] = false;
+});
+
+// Obstacles
+const obstacles = [];
+let spawnTimer = 0;
+let initialSpawnTimer = 200;
+let spawnRate = initialSpawnTimer; 
+
+class Obstacle {
+    constructor(x, y, w, h, color) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.color = color;
+        this.markedForDeletion = false;
+    }
+    
+    update() {
+        this.x -= gameSpeed;
+        if (this.x + this.w < 0) {
+            this.markedForDeletion = true;
+            score++;
+            scoreElement.innerText = "Score: " + score;
+            playScoreSound();
+        }
+        this.draw();
+    }
+    
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+    }
+}
+
+function spawnObstacle() {
+    spawnTimer++;
+    if (spawnTimer >= spawnRate) {
+        let obstacle;
+        // 30% chance of flying obstacle, only after score 5
+        if (Math.random() > 0.7 && score > 5) {
+            // Large obstacle from top (y=0) to y=175. 
+            // Dino Grounded Head = 170 (Collision). Dino Ducking Head = 185 (Clear).
+            // Impossible to jump over.
+            obstacle = new Obstacle(
+                canvas.width, 
+                0, 
+                40 + Math.random() * 10, 
+                175,
+                '#0033CC' // Blue Wall
+            );
+        } else {
+            let height = 20 + Math.random() * 30; // Random height between 20 and 50
+            obstacle = new Obstacle(
+                canvas.width, 
+                canvas.height - height, 
+                20 + Math.random() * 20, // Width 20-40 
+                height,
+                '#FF0000' // Red Cactus
+            );
+        }
+
+        obstacles.push(obstacle);
+        spawnTimer = 0;
+        
+        // Randomize spawn rate slightly
+        spawnRate = initialSpawnTimer - (gameSpeed * 5) + Math.random() * 50; 
+        if (spawnRate < 60) spawnRate = 60; // Minimum frames between spawns
+    }
+}
+
+function checkCollision(rect1, rect2) {
+    return (
+        rect1.x < rect2.x + rect2.w &&
+        rect1.x + rect1.width > rect2.x &&
+        rect1.y < rect2.y + rect2.h &&
+        rect1.y + rect1.height > rect2.y
+    );
+}
+
+// Game Loop
+function update() {
+    if (gameOver) {
+        ctx.fillStyle = "black";
+        ctx.font = "30px Arial";
+        ctx.fillText("Game Over!", canvas.width / 2 - 70, canvas.height / 2);
+        ctx.font = "20px Arial";
+        ctx.fillText("Press 'Enter' to Restart", canvas.width / 2 - 100, canvas.height / 2 + 30);
+        return; 
+    }
+
+    requestAnimationFrame(update);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Increase game speed
+    gameSpeed += 0.003;
+    if (gameSpeed > 20) {
+        gameSpeed = 20; // Maximum speed
+    }
+
+    spawnObstacle();
+
+    // Update and draw obstacles
+    obstacles.forEach((obstacle, index) => {
+        obstacle.update();
+        if (checkCollision(dino, obstacle)) {
+            gameOver = true;
+            playDeathSound();
+        }
+    });
+
+    // Remove off-screen obstacles
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        if (obstacles[i].markedForDeletion) {
+            obstacles.splice(i, 1);
+        }
+    }
+
+    dino.update();
+}
+
+function resetGame() {
+    gameOver = false;
+    score = 0;
+    scoreElement.innerText = "Score: " + score;
+    obstacles.length = 0;
+    gameSpeed = 5;
+    spawnTimer = 0;
+    spawnRate = initialSpawnTimer;
+    dino.y = canvas.height - dino.height;
+    dino.dy = 0;
+    update();
+}
+
+// Start Game
+update();
+
+// Restart Listener
+window.addEventListener('keydown', function(e) {
+    if (gameOver && e.code === 'Enter') {
+        resetGame();
+    }
+});
