@@ -88,6 +88,60 @@ function playScoreSound() {
     oscillator.stop(audioCtx.currentTime + 0.1);
 }
 
+function playSonarPing(type, xPosition) {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    // Stereo Panner for spatial audio
+    let panner;
+    try {
+        panner = audioCtx.createStereoPanner();
+    } catch(e) {
+        // Fallback or ignore if not supported
+    }
+
+    // Map xPosition (0..800) to Pan (-1..1)
+    // 0 -> -1 (Left), 400 -> 0 (Center), 800 -> 1 (Right)
+    let panVal = (xPosition - 400) / 400;
+    if (panVal > 1) panVal = 1;
+    if (panVal < -1) panVal = -1;
+
+    // Volume based on distance (closer = louder)
+    // x=50 (player) -> dist=0
+    let dist = Math.max(0, xPosition - 50);
+    // dist 750 -> vol 0.05, dist 0 -> vol 0.3
+    let vol = 0.3 - (dist / 750) * 0.25;
+    if (vol < 0.05) vol = 0.05;
+
+    if (type === 'blue') {
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+    } else {
+        // Red
+        oscillator.type = 'sine'; 
+        oscillator.frequency.setValueAtTime(400, audioCtx.currentTime);
+    }
+
+    gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    if (panner) {
+        panner.pan.value = panVal;
+        oscillator.connect(panner);
+        panner.connect(gainNode);
+    } else {
+        oscillator.connect(gainNode);
+    }
+    
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
 // Game Variables
 let gameSpeed = 5;
 let score = 0;
@@ -179,6 +233,7 @@ class Obstacle {
         this.h = h;
         this.color = color;
         this.markedForDeletion = false;
+        this.lastPingTime = 0;
     }
     
     update() {
@@ -189,6 +244,23 @@ class Obstacle {
             scoreElement.innerText = "Score: " + score;
             playScoreSound();
         }
+
+        // Sonar Logic
+        // Only ping if in front of player (x > 50) and on-screen (x < 800)
+        let dist = this.x - 50;
+        if (dist > 0 && dist < canvas.width) {
+            // Map distance to interval: 
+            // 750px -> 0.6s
+            // 0px -> 0.05s (very fast ping when close)
+            // Linear map: interval = min + (dist/max) * (max-min)
+            let interval = 0.05 + (dist / 750) * 0.55;
+
+            if (audioCtx.currentTime - this.lastPingTime > interval) {
+                playSonarPing(this.color === '#0033CC' ? 'blue' : 'red', this.x);
+                this.lastPingTime = audioCtx.currentTime;
+            }
+        }
+
         this.draw();
     }
     
