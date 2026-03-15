@@ -380,7 +380,7 @@ function update() {
         ctx.font = "30px Arial";
         ctx.fillText("Game Over!", canvas.width / 2 - 70, canvas.height / 2);
         ctx.font = "20px Arial";
-        ctx.fillText("Press 'Enter' to Restart", canvas.width / 2 - 100, canvas.height / 2 + 30);
+        ctx.fillText("Say 'Start' to Restart", canvas.width / 2 - 100, canvas.height / 2 + 30);
         return; 
     }
 
@@ -405,6 +405,16 @@ function update() {
         if (checkCollision(dino, obstacle)) {
             gameOver = true;
             playDeathSound();
+            
+            // Start listening for "start" command
+            if (recognition) {
+                try {
+                    recognition.start();
+                    console.log("Listening for 'start'...");
+                } catch (e) {
+                    console.error("Speech recognition start failed:", e);
+                }
+            }
         }
     });
 
@@ -419,6 +429,14 @@ function update() {
 }
 
 function resetGame() {
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch(e) {
+            // Already stopped?
+        }
+    }
+
     gameOver = false;
     score = 0;
     scoreElement.innerText = "Score: " + score;
@@ -435,11 +453,49 @@ function resetGame() {
 update();
 
 // Restart Listener
-window.addEventListener('keydown', function(e) {
-    if (gameOver && e.code === 'Enter') {
-        resetGame();
+// window.addEventListener('keydown', function(e) {
+//     if (gameOver && e.code === 'Enter') {
+//         resetGame();
+//     }
+// });
+
+// Speech Recognition for Restart
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event) => {
+        const last = event.results.length - 1;
+        const command = event.results[last][0].transcript.trim().toLowerCase();
+        console.log('Voice Command:', command);
+        
+        if (gameOver && (command.includes('start') || command.includes('restart'))) {
+            resetGame();
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+    };
+    
+    recognition.onend = () => {
+        // Restart listening if game is still over (handles timeout)
+        if (gameOver) {
+            try {
+                recognition.start();
+            } catch(e) {
+                // Ignore if already started
+            }
+        }
     }
-});
+} else {
+    console.warn("Speech Recognition API not supported in this browser.");
+}
 
 // Handle Microphone Activation
 async function startMicrophone() {
