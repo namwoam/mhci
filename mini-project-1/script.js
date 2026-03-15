@@ -300,9 +300,28 @@ function spawnObstacle() {
         obstacles.push(obstacle);
         spawnTimer = 0;
         
-        // Randomize spawn rate slightly
-        spawnRate = initialSpawnTimer - (gameSpeed * 5) + Math.random() * 50; 
-        if (spawnRate < 60) spawnRate = 60; // Minimum frames between spawns
+        // Dynamic spawn rate based on distance instead of time
+        // This ensures multiple obstacles can be on screen as speed increases
+        
+        // Minimum distance between obstacles (pixels)
+        let minDistance = 400;
+        // Maximum distance
+        let maxDistance = 900;
+
+        // Reduce distance as score increases to make it harder
+        if (score > 10) {
+            minDistance = 350;
+            maxDistance = 800;
+        }
+        if (score > 20) {
+             minDistance = 300;
+             maxDistance = 600;
+        }
+
+        let distance = minDistance + Math.random() * (maxDistance - minDistance);
+        spawnRate = Math.round(distance / gameSpeed);
+        
+        if (spawnRate < 20) spawnRate = 20; // Absolute minimum frames
     }
 }
 
