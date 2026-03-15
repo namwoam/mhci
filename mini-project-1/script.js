@@ -14,9 +14,7 @@ const ACTION_COOLDOWN = 300; // ms
 // Sound
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playJumpSound() {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state !== 'running') return;
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -35,9 +33,7 @@ function playJumpSound() {
 }
 
 function playDuckSound() {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state !== 'running') return;
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -56,9 +52,7 @@ function playDuckSound() {
 }
 
 function playDeathSound() {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state !== 'running') return;
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -77,9 +71,7 @@ function playDeathSound() {
 }
 
 function playScoreSound() {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state !== 'running') return;
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -98,9 +90,7 @@ function playScoreSound() {
 }
 
 function playSonarPing(type, xPosition) {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state !== 'running') return;
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
     
@@ -152,9 +142,7 @@ function playSonarPing(type, xPosition) {
 }
 
 function playLandSound() {
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (audioCtx.state !== 'running') return;
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
@@ -513,17 +501,16 @@ async function startMicrophone() {
     }
     
     try {
+        // Ensure context is running. If suspended, resume it.
+        // This must be called from a user gesture handler.
         if (audioCtx.state === 'suspended') {
-            try {
-                await audioCtx.resume();
-            } catch (resumeErr) {
-                console.warn('AudioContext resume failed, waiting for user interaction:', resumeErr);
-                // Continue to try to get mic access even if resume fails
-            }
+            await audioCtx.resume();
         }
 
         if (!isMicActive) {
             micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Connecting the stream source might fail if context is not running
             const source = audioCtx.createMediaStreamSource(micStream);
             
             if (!analyser) {
@@ -533,8 +520,6 @@ async function startMicrophone() {
                 dataArray = new Uint8Array(bufferLength);
                 source.connect(analyser); 
             } else {
-                // If analyser exists but we are reconnecting (e.g. stopped previously?)
-                // Just connect new source
                 source.connect(analyser);
             }
             
@@ -547,21 +532,13 @@ async function startMicrophone() {
         }
 
     } catch (err) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-             // If this was an auto-start attempt, maybe don't alert immediately?
-             // But usually it's better to tell user.
-             // If user dismissed it, it throws.
-             console.warn('Microphone permission not granted yet.');
-        } else {
-             console.error('Error accessing microphone:', err);
-        }
-        
+        console.error('Error starting microphone:', err);
         if (micStatus && !isMicActive) micStatus.innerText = "Click to Activate Mic";
     }
 }
 
-// Try to start immediately on load
-startMicrophone();
+// Remove automatic start to prevent AudioContext errors
+// startMicrophone(); 
 
 // Ensure audio context runs on any interaction
 window.addEventListener('click', async () => {
@@ -569,7 +546,7 @@ window.addEventListener('click', async () => {
         await audioCtx.resume();
     }
     if (!isMicActive) {
-        startMicrophone();
+        startMicrophone(); 
     }
 });
 
