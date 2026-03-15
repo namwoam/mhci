@@ -441,50 +441,81 @@ window.addEventListener('keydown', function(e) {
     }
 });
 
-// Handle Microphone Enabler
-const micButton = document.getElementById('micButton');
-if (micButton) {
-    micButton.addEventListener('click', async () => {
-        if (window.location.protocol === 'file:') {
-            alert('Microphone access is not supported when opening files directly. Please use a local server (e.g., python3 -m http.server).');
-            return;
-        }
+// Handle Microphone Activation
+async function startMicrophone() {
+    const micStatus = document.getElementById('micStatus');
+    
+    if (window.location.protocol === 'file:') {
+        alert('Microphone access is not supported when opening files directly. Please use a local server (e.g., python3 -m http.server).');
+        return;
+    }
 
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (micStatus) micStatus.innerText = 'Microphone Not Supported';
+        alert('Your browser does not support microphone access or the context is insecure (requires HTTPS or localhost).');
+        return;
+    }
+    
+    try {
         if (audioCtx.state === 'suspended') {
-            await audioCtx.resume();
-        }
-        
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Your browser does not support microphone access or the context is insecure (requires HTTPS or localhost).');
-            return;
-        }
-
-        try {
-            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const source = audioCtx.createMediaStreamSource(micStream);
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 2048;
-            bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-            source.connect(analyser); // Connect to analyser
-            // Do NOT connect to destination to avoid feedback loop
-            
-            isMicActive = true;
-            micButton.innerText = "Microphone Active";
-            micButton.disabled = true;
-            console.log("Microphone activated for game control");
-        } catch (err) {
-            console.error('Error accessing microphone:', err);
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                alert('Microphone access denied. Please grant permission in your browser settings.');
-            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                alert('No microphone found.');
-            } else {
-                alert(`Could not access microphone: ${err.message}`);
+            try {
+                await audioCtx.resume();
+            } catch (resumeErr) {
+                console.warn('AudioContext resume failed, waiting for user interaction:', resumeErr);
+                // Continue to try to get mic access even if resume fails
             }
         }
-    });
+
+        if (!isMicActive) {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = audioCtx.createMediaStreamSource(micStream);
+            
+            if (!analyser) {
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 2048;
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                source.connect(analyser); 
+            } else {
+                // If analyser exists but we are reconnecting (e.g. stopped previously?)
+                // Just connect new source
+                source.connect(analyser);
+            }
+            
+            isMicActive = true;
+            if (micStatus) {
+                micStatus.innerText = "Microphone Active";
+                micStatus.style.color = "green";
+            }
+            console.log("Microphone activated.");
+        }
+
+    } catch (err) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+             // If this was an auto-start attempt, maybe don't alert immediately?
+             // But usually it's better to tell user.
+             // If user dismissed it, it throws.
+             console.warn('Microphone permission not granted yet.');
+        } else {
+             console.error('Error accessing microphone:', err);
+        }
+        
+        if (micStatus && !isMicActive) micStatus.innerText = "Click to Activate Mic";
+    }
 }
+
+// Try to start immediately on load
+startMicrophone();
+
+// Ensure audio context runs on any interaction
+window.addEventListener('click', async () => {
+    if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+    }
+    if (!isMicActive) {
+        startMicrophone();
+    }
+});
 
 function handleAudioInput() {
     if (!isMicActive || !analyser) return;
