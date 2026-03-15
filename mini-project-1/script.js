@@ -2,6 +2,15 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreElement = document.getElementById('score');
 
+// Microphone Variables
+let analyser;
+let micStream;
+let dataArray;
+let bufferLength;
+let isMicActive = false;
+let lastActionTime = 0;
+const ACTION_COOLDOWN = 300; // ms
+
 // Sound
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playJumpSound() {
@@ -378,6 +387,10 @@ function update() {
     requestAnimationFrame(update);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    if (isMicActive) {
+        handleAudioInput();
+    }
+
     // Increase game speed
     gameSpeed += 0.003;
     if (gameSpeed > 20) {
@@ -427,3 +440,109 @@ window.addEventListener('keydown', function(e) {
         resetGame();
     }
 });
+
+// Handle Microphone Enabler
+const micButton = document.getElementById('micButton');
+if (micButton) {
+    micButton.addEventListener('click', async () => {
+        if (window.location.protocol === 'file:') {
+            alert('Microphone access is not supported when opening files directly. Please use a local server (e.g., python3 -m http.server).');
+            return;
+        }
+
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Your browser does not support microphone access or the context is insecure (requires HTTPS or localhost).');
+            return;
+        }
+
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = audioCtx.createMediaStreamSource(micStream);
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048;
+            bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+            source.connect(analyser); // Connect to analyser
+            // Do NOT connect to destination to avoid feedback loop
+            
+            isMicActive = true;
+            micButton.innerText = "Microphone Active";
+            micButton.disabled = true;
+            console.log("Microphone activated for game control");
+        } catch (err) {
+            console.error('Error accessing microphone:', err);
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                alert('Microphone access denied. Please grant permission in your browser settings.');
+            } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                alert('No microphone found.');
+            } else {
+                alert(`Could not access microphone: ${err.message}`);
+            }
+        }
+    });
+}
+
+function handleAudioInput() {
+    if (!isMicActive || !analyser) return;
+
+    analyser.getByteFrequencyData(dataArray);
+
+    // Analyze frequency bands
+    // 0-200 Hz (Index 0-10) - Bass/Thud
+    let bassSum = 0;
+    // 44100 / 2048 = 21.5 Hz per bin
+    // 0-10 bins -> 0-215 Hz.
+    for (let i = 0; i < 10; i++) {
+        bassSum += dataArray[i];
+    }
+    let bassAvg = bassSum / 10;
+
+    // 2000-5000 Hz (Index 93-232) - Treble/Clap
+    let trebleSum = 0;
+    let trebleCount = 0;
+    for (let i = 93; i < 232; i++) {
+        trebleSum += dataArray[i];
+        trebleCount++;
+    }
+    let trebleAvg = trebleSum / trebleCount;
+
+    // Thresholds
+    // Clap is usually very loud and sharp
+    const CLAP_THRESHOLD = 60; 
+    const SLAP_THRESHOLD = 100;
+
+    const now = Date.now();
+    if (now - lastActionTime < ACTION_COOLDOWN) return;
+
+    // Heuristics
+    // Clap: High frequencies are dominant
+    if (trebleAvg > CLAP_THRESHOLD && trebleAvg > bassAvg * 1.2) {
+        triggerAction('jump');
+        lastActionTime = now;
+    } 
+    // Slap: Low frequencies are very strong (thud)
+    else if (bassAvg > SLAP_THRESHOLD) {
+        triggerAction('duck');
+        lastActionTime = now;
+    }
+}
+
+function triggerAction(action) {
+    if (action === 'jump') {
+        // Simulate Jump
+        if (!dino.isDucking && dino.grounded) { // Only jump if not ducking
+            keys['Space'] = true;
+            setTimeout(() => { keys['Space'] = false; }, 100); 
+            console.log("Audio Detected: Jump (Clap)");
+        }
+    } else if (action === 'duck') {
+        // Simulate Duck
+        keys['ArrowDown'] = true;
+        setTimeout(() => { keys['ArrowDown'] = false; }, 400); // Hold duck
+        console.log("Audio Detected: Duck (Slap)");
+    }
+}
