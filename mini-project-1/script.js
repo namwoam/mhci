@@ -142,6 +142,28 @@ function playSonarPing(type, xPosition) {
     oscillator.stop(audioCtx.currentTime + 0.1);
 }
 
+function playLandSound() {
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    // Low "Thud"
+    oscillator.type = 'triangle';
+    oscillator.frequency.setValueAtTime(100, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.1);
+
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.start();
+    oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
 // Game Variables
 let gameSpeed = 5;
 let score = 0;
@@ -199,6 +221,9 @@ const dino = {
             }
             this.grounded = false;
         } else {
+            if (!this.grounded) {
+                playLandSound();
+            }
             this.dy = 0;
             this.grounded = true;
             this.y = canvas.height - this.height; // Snap to ground
