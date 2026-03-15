@@ -251,12 +251,12 @@ const dino = {
 
 // Input Handling
 const keys = {};
-window.addEventListener('keydown', function(e) {
-    keys[e.code] = true;
-});
-window.addEventListener('keyup', function(e) {
-    keys[e.code] = false;
-});
+// window.addEventListener('keydown', function(e) {
+//     keys[e.code] = true;
+// });
+// window.addEventListener('keyup', function(e) {
+//     keys[e.code] = false;
+// });
 
 // Obstacles
 const obstacles = [];
