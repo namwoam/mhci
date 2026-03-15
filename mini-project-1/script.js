@@ -75,8 +75,8 @@ function playScoreSound() {
     const gainNode = audioCtx.createGain();
 
     oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
-    oscillator.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+    oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 0.1);
 
     gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); 
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
