@@ -110,9 +110,9 @@ function setupWindSound() {
     windNode.connect(filter).connect(windGain).connect(audioCtx.destination);
 }
 
-function setupBodyHumSound() {
-    bodyHumNode = audioCtx.createOscillator();
-    bodyH
+function playStepSound() {
+    if (!audioCtx || !soundEnabled) return;
+    
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const panner = audioCtx.createStereoPanner();
@@ -260,26 +260,25 @@ function updateWallAudio(head) {
     windGain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.1);
 }
 
-// 3. Body Warning (Hum)
-function updateBodyAudio(head) {
-    if (!audioCtx || gameover) {
-        if (bodyHumGain) bodyHumGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
-        return;
-    }
-    
-    // Find closest body part
-    let minDist = Infinity;
-    // Start from index 2 to ignore the body segment directly attached to head
-    for (let i = 2; i < snakePositions.length; i++) {
-        const part = snakePositions[i];
-        const d = Math.abs(head.x - part.x) + Math.abs(head.y - part.y); // Manhattan distance
-        if (d < minDist) minDist = d;
-    }
-    
-    // If very close (adjacent or 1 gap), hum
-    // Dist 20 = adjacent. Dist 0 = crash.
+
+// =========================
+// Elements
 // =========================
 
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const snakePosEl = document.getElementById('snakePos');
+const snakeDirEl = document.getElementById('snakeDir');
+const applePosEl = document.getElementById('applePos');
+
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const startOverlay = document.getElementById('startOverlay');
+
+
+// =========================
+// Setup & Loop
+// =========================
 let gameInterval = null;
 let isPlaying = false;
 
@@ -353,7 +352,6 @@ function draw() {
         const head = snakePositions[0];
         updateAppleAudio(head);
         updateWallAudio(head);
-        updateBodyAudio(head);
     }
 }
 
