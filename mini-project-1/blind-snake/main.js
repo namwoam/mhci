@@ -12,7 +12,7 @@ const MAIN_COLOR = "#FFFFFF";
 const GRID_SIZE = 20;
 const START_DIRECTION_X = 1;
 const START_DIRECTION_Y = 0;
-const GAME_FRAME_RATE = 10;
+const GAME_FRAME_RATE = 5;
 
 // Timing settings
 const GAME_OVER_DELAY_MS = 2000;
@@ -134,15 +134,41 @@ function playStepSound() {
     if (!audioCtx || !soundEnabled) return;
     
     const osc = audioCtx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.05);
-    
     const gain = audioCtx.createGain();
+    const panner = audioCtx.createStereoPanner();
+
+    osc.type = 'square';
+    
+    // Default Mid Freq
+    let freq = 440; 
+    let pan = 0;
+
+    // Directional Logic
+    if (snakeDirection.y === -1) { // Up
+        freq = 880; // High Pitch
+        pan = 0;
+    } else if (snakeDirection.y === 1) { // Down
+        freq = 220; // Low Pitch
+        pan = 0;
+    } else if (snakeDirection.x === -1) { // Left
+        freq = 440;
+        pan = -0.8; // Left
+    } else if (snakeDirection.x === 1) { // Right
+        freq = 440;
+        pan = 0.8; // Right
+    }
+
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + 0.05); // Short decay
+    
+    panner.pan.value = pan;
+
     gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
     
-    osc.connect(gain).connect(audioCtx.destination);
+    // Connect: Osc -> Gain -> Panner -> Dest
+    osc.connect(gain).connect(panner).connect(audioCtx.destination);
+    
     osc.start();
     osc.stop(audioCtx.currentTime + 0.05);
 }
