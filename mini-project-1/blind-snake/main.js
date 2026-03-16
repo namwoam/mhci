@@ -12,7 +12,7 @@ const MAIN_COLOR = "#FFFFFF";
 const GRID_SIZE = 20;
 const START_DIRECTION_X = 1;
 const START_DIRECTION_Y = 0;
-const GAME_FRAME_RATE = 5;
+const GAME_FRAME_RATE = 3;
 
 // Timing settings
 const GAME_OVER_DELAY_MS = 2000;
@@ -293,14 +293,18 @@ function setup() {
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.lang = 'en-US';
-        recognition.interimResults = false;
+        recognition.interimResults = true; // Enable interim results for faster response
         recognition.maxAlternatives = 1;
 
         recognition.onresult = (event) => {
-            const last = event.results.length - 1;
-            const transcript = event.results[last][0].transcript.trim().toLowerCase();
-            console.log('Voice Command:', transcript);
+            // Use the resultIndex to get the latest result, whether final or interim
+            const result = event.results[event.results.length - 1];
+            const transcript = result[0].transcript.trim().toLowerCase();
             
+            // Log for debugging (optional, can be noisy with interim)
+            // console.log('Voice Command:', transcript, 'Final:', result.isFinal);
+            
+            // Process commands immediately
             if (transcript.includes('up') && snakeDirection.y !== 1) {
                 snakeDirection = { x: 0, y: -1 };
             } else if (transcript.includes('down') && snakeDirection.y !== -1) {
