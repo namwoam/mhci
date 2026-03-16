@@ -12,7 +12,7 @@ const MAIN_COLOR = "#FFFFFF";
 const GRID_SIZE = 20;
 const START_DIRECTION_X = 1;
 const START_DIRECTION_Y = 0;
-const GAME_FRAME_RATE = 5;
+const GAME_FRAME_RATE = 10;
 
 // Timing settings
 const GAME_OVER_DELAY_MS = 2000;
@@ -51,9 +51,6 @@ let windNode = null;
 let windGain = null;
 let windPanner = null;
 
-let bodyHumNode = null;
-let bodyHumGain = null;
-
 // Initialize Audio Context on user interaction
 function initAudio() {
     if (audioCtx) return; // Already init
@@ -63,12 +60,10 @@ function initAudio() {
 
     setupAppleSound();
     setupWindSound();
-    setupBodyHumSound();
     
     // Start continuous sounds (muted by default via gain)
     appleOsc.start();
     windNode.start();
-    bodyHumNode.start();
 }
 
 function setupAppleSound() {
@@ -117,22 +112,7 @@ function setupWindSound() {
 
 function setupBodyHumSound() {
     bodyHumNode = audioCtx.createOscillator();
-    bodyHumNode.type = 'sawtooth';
-    bodyHumNode.frequency.value = 60; // Low frequency hum
-    
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 200;
-
-    bodyHumGain = audioCtx.createGain();
-    bodyHumGain.gain.setValueAtTime(0, audioCtx.currentTime);
-
-    bodyHumNode.connect(filter).connect(bodyHumGain).connect(audioCtx.destination);
-}
-
-function playStepSound() {
-    if (!audioCtx || !soundEnabled) return;
-    
+    bodyH
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const panner = audioCtx.createStereoPanner();
@@ -289,7 +269,8 @@ function updateBodyAudio(head) {
     
     // Find closest body part
     let minDist = Infinity;
-    for (let i = 1; i < snakePositions.length; i++) {
+    // Start from index 2 to ignore the body segment directly attached to head
+    for (let i = 2; i < snakePositions.length; i++) {
         const part = snakePositions[i];
         const d = Math.abs(head.x - part.x) + Math.abs(head.y - part.y); // Manhattan distance
         if (d < minDist) minDist = d;
@@ -297,34 +278,6 @@ function updateBodyAudio(head) {
     
     // If very close (adjacent or 1 gap), hum
     // Dist 20 = adjacent. Dist 0 = crash.
-    const threshold = GRID_SIZE * 3;
-    let volume = 0;
-    if (minDist < threshold && minDist > 0) {
-        volume = 1 - (minDist / threshold);
-        volume = volume * 0.1; 
-    }
-    
-    bodyHumGain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.1);
-}
-
-
-// =========================
-// Elements
-// =========================
-
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score');
-const snakePosEl = document.getElementById('snakePos');
-const snakeDirEl = document.getElementById('snakeDir');
-const applePosEl = document.getElementById('applePos');
-
-const gameOverOverlay = document.getElementById('gameOverOverlay');
-const startOverlay = document.getElementById('startOverlay');
-
-
-// =========================
-// Setup & Loop
 // =========================
 
 let gameInterval = null;
@@ -381,7 +334,6 @@ function draw() {
     if (gameover) {
         // Stop audio
         stopAllAudio();
-        
         // Show gameover screen
         gameOverOverlay.classList.remove('hidden');
         
@@ -419,7 +371,6 @@ function updateHud() {
     snakeDirEl.textContent = `Snake Direction: [${snakeDirection.x}, ${snakeDirection.y}]`;
     applePosEl.textContent = `Apple Position: [${objPosition.x}, ${objPosition.y}]`;
 }
-
 function drawFood() {
     ctx.fillStyle = BACKGROUND_COLOR;
     ctx.strokeStyle = MAIN_COLOR;
