@@ -5,8 +5,8 @@
 // Window settings
 const WINDOW_WIDTH = 400;
 const WINDOW_HEIGHT = 400; // Removed HUD space
-const BACKGROUND_COLOR = "#000000"; 
-const MAIN_COLOR = "#FFFFFF";       
+const BACKGROUND_COLOR = "#000000";
+const MAIN_COLOR = "#FFFFFF";
 
 // Snake settings
 const GRID_SIZE = 20;
@@ -26,7 +26,7 @@ let gameover = false;
 let gameoverAtMillis = -1;
 
 // snakePositions[0] is the head
-let snakePositions = []; 
+let snakePositions = [];
 
 // direction
 let snakeDirection = { x: START_DIRECTION_X, y: START_DIRECTION_Y };
@@ -60,7 +60,7 @@ function initAudio() {
 
     setupAppleSound();
     setupWindSound();
-    
+
     // Start continuous sounds (muted by default via gain)
     appleOsc.start();
     windNode.start();
@@ -69,15 +69,15 @@ function initAudio() {
 function setupAppleSound() {
     appleOsc = audioCtx.createOscillator();
     appleOsc.type = 'sine';
-    
+
     appleGain = audioCtx.createGain();
     appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    
+
     // Use StereoPanner for Left/Right
     applePanner = audioCtx.createStereoPanner();
-    
+
     appleOsc.connect(appleGain).connect(applePanner).connect(audioCtx.destination);
-    
+
     // Start pulsing loop
     setInterval(pulsingApple, 100);
 }
@@ -98,29 +98,29 @@ function setupWindSound() {
     windNode = audioCtx.createBufferSource();
     windNode.buffer = noiseBuffer;
     windNode.loop = true;
-    
+
     // Filter to make it sound like wind
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 400;
-    
+
     windGain = audioCtx.createGain();
     windGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    
+
     windNode.connect(filter).connect(windGain).connect(audioCtx.destination);
 }
 
 function playStepSound() {
     if (!audioCtx || !soundEnabled) return;
-    
+
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     const panner = audioCtx.createStereoPanner();
 
     osc.type = 'square';
-    
+
     // Default Mid Freq
-    let freq = 440; 
+    let freq = 440;
     let pan = 0;
 
     // Directional Logic
@@ -140,15 +140,15 @@ function playStepSound() {
 
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + 0.05); // Short decay
-    
+
     panner.pan.value = pan;
 
     gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-    
+
     // Connect: Osc -> Gain -> Panner -> Dest
     osc.connect(gain).connect(panner).connect(audioCtx.destination);
-    
+
     osc.start();
     osc.stop(audioCtx.currentTime + 0.05);
 }
@@ -159,27 +159,27 @@ function playEatSound() {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(300, audioCtx.currentTime);
     osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime + 0.1);
-    
+
     const gain = audioCtx.createGain();
     gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
     gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-    
+
     osc.connect(gain).connect(audioCtx.destination);
     osc.start();
     osc.stop(audioCtx.currentTime + 0.1);
 }
 
 function playCrashSound() {
-     if (!audioCtx) return;
+    if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(100, audioCtx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.3);
-    
+
     const gain = audioCtx.createGain();
     gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-    
+
     osc.connect(gain).connect(audioCtx.destination);
     osc.start();
     osc.stop(audioCtx.currentTime + 0.3);
@@ -191,13 +191,13 @@ function updateAppleAudio(head) {
         if (appleGain) appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
         return;
     }
-    
+
     // Panning (Left/Right)
     // Map -200..200 (relative x) to -1..1
     const dx = objPosition.x - head.x;
     const pan = Math.max(-1, Math.min(1, dx / (WINDOW_WIDTH / 2)));
     applePanner.pan.setTargetAtTime(pan, audioCtx.currentTime, 0.1);
-    
+
     // Pitch (Up/Down) - Map Height to Freq (High Y = Low Freq? No, usually High Y = Down = Low Pitch)
     // Low Y (0) = High Pitch
     const dy = objPosition.y - head.y; // Relative Y
@@ -212,17 +212,17 @@ function updateAppleAudio(head) {
 let lastApplePulse = 0;
 function pulsingApple() {
     if (!audioCtx || gameover || snakePositions.length === 0) return;
-    
+
     const head = snakePositions[0];
     // Distance Metric
     const dist = Math.sqrt(Math.pow(head.x - objPosition.x, 2) + Math.pow(head.y - objPosition.y, 2));
-    const maxDist = Math.sqrt(WINDOW_WIDTH*WINDOW_WIDTH + WINDOW_HEIGHT*WINDOW_HEIGHT);
+    const maxDist = Math.sqrt(WINDOW_WIDTH * WINDOW_WIDTH + WINDOW_HEIGHT * WINDOW_HEIGHT);
     const normalizedDist = dist / maxDist; // 0..1
-    
+
     // Pulse Rate: Closer = Faster. 
     // Delay maps to: 100ms (close) to 1000ms (far)
     const interval = 100 + normalizedDist * 800;
-    
+
     const now = Date.now();
     if (now - lastApplePulse > interval) {
         lastApplePulse = now;
@@ -240,23 +240,23 @@ function updateWallAudio(head) {
         if (windGain) windGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
         return;
     }
-    
+
     // Distance to nearest wall in current direction
     let distToWall = 0;
     if (snakeDirection.x === 1) distToWall = WINDOW_WIDTH - head.x;
     else if (snakeDirection.x === -1) distToWall = head.x;
     else if (snakeDirection.y === 1) distToWall = WINDOW_HEIGHT - head.y;
     else if (snakeDirection.y === -1) distToWall = head.y;
-    
+
     // If closer than 3 grids (60px), fade in wind
     const threshold = GRID_SIZE * 4;
     let volume = 0;
-    
+
     if (distToWall < threshold) {
         volume = 1 - (distToWall / threshold); // 0..1
         volume = volume * 0.15; // Max vol
     }
-    
+
     windGain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.1);
 }
 
@@ -282,74 +282,225 @@ const startOverlay = document.getElementById('startOverlay');
 let gameInterval = null;
 let isPlaying = false;
 
-function setup() {
+let recognition = null;
+let speechReady = false;
+let speechInstalling = false;
+let pendingDirection = null;
+
+async function setupSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    console.warn("SpeechRecognition is not supported in this browser.");
+    return false;
+  }
+
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.lang = "en-US";
+
+  // Prefer on-device recognition when the browser supports it.
+  // This must be set before start().
+  try {
+    if ("processLocally" in recognition) {
+      recognition.processLocally = true;
+    }
+  } catch (e) {
+    console.warn("Unable to enable processLocally:", e);
+  }
+
+  // Optional contextual biasing for the tiny command vocabulary.
+  try {
+    if ("phrases" in recognition && "SpeechRecognitionPhrase" in window) {
+      recognition.phrases = [
+        new window.SpeechRecognitionPhrase("up", 8.0),
+        new window.SpeechRecognitionPhrase("down", 8.0),
+        new window.SpeechRecognitionPhrase("left", 8.0),
+        new window.SpeechRecognitionPhrase("right", 8.0),
+      ];
+    }
+  } catch (e) {
+    console.warn("Unable to set phrase biasing:", e);
+  }
+
+  // Install on-device language pack when supported.
+  // MDN recommends checking available() first, then install() if needed.
+  try {
+    if (typeof SR.available === "function" && typeof SR.install === "function") {
+      const availability = await SR.available({
+        langs: [recognition.lang],
+        processLocally: true,
+      });
+
+      if (availability === "available") {
+        speechReady = true;
+      } else if (availability === "downloadable" || availability === "downloading") {
+        speechInstalling = true;
+        console.log(`Installing speech pack for ${recognition.lang}...`);
+
+        const installed = await SR.install({
+          langs: [recognition.lang],
+        });
+
+        speechInstalling = false;
+        speechReady = !!installed;
+
+        if (!speechReady) {
+          console.warn(`Language pack install failed for ${recognition.lang}. Falling back to remote if possible.`);
+          if ("processLocally" in recognition) {
+            recognition.processLocally = false;
+          }
+          speechReady = true;
+        }
+      } else {
+        console.warn(`${recognition.lang} is unavailable for on-device speech. Falling back to remote if possible.`);
+        if ("processLocally" in recognition) {
+          recognition.processLocally = false;
+        }
+        speechReady = true;
+      }
+    } else {
+      // Browser does not expose on-device install APIs.
+      // Fall back to normal speech recognition.
+      if ("processLocally" in recognition) {
+        recognition.processLocally = false;
+      }
+      speechReady = true;
+    }
+  } catch (err) {
+    console.warn("Speech pack setup failed, falling back to non-local recognition:", err);
+    try {
+      if ("processLocally" in recognition) {
+        recognition.processLocally = false;
+      }
+    } catch (_) {}
+    speechReady = true;
+  }
+
+  let lastCommand = "";
+  let lastCommandTime = 0;
+  const COMMAND_COOLDOWN_MS = 120;
+
+  recognition.onresult = (event) => {
+    const i = event.resultIndex;
+    const result = event.results[i];
+    if (!result || !result[0]) return;
+
+    const transcript = result[0].transcript.trim().toLowerCase();
+
+    let command = null;
+    if (/\bup\b/.test(transcript)) command = "up";
+    else if (/\bdown\b/.test(transcript)) command = "down";
+    else if (/\bleft\b/.test(transcript)) command = "left";
+    else if (/\bright\b/.test(transcript)) command = "right";
+
+    if (!command) return;
+
+    const now = performance.now();
+    if (command === lastCommand && now - lastCommandTime < COMMAND_COOLDOWN_MS) {
+      return;
+    }
+
+    lastCommand = command;
+    lastCommandTime = now;
+
+    // Queue direction for next tick instead of mutating immediately.
+    // This feels more stable for Snake.
+    if (command === "up" && snakeDirection.y !== 1) {
+      pendingDirection = { x: 0, y: -1 };
+    } else if (command === "down" && snakeDirection.y !== -1) {
+      pendingDirection = { x: 0, y: 1 };
+    } else if (command === "left" && snakeDirection.x !== 1) {
+      pendingDirection = { x: -1, y: 0 };
+    } else if (command === "right" && snakeDirection.x !== -1) {
+      pendingDirection = { x: 1, y: 0 };
+    }
+  };
+
+  recognition.onerror = async (event) => {
+    console.error("Speech recognition error:", event.error);
+
+    // Retry installation path if local recognition says language isn't ready.
+    if (event.error === "language-not-supported") {
+      try {
+        if (typeof SR.available === "function" && typeof SR.install === "function") {
+          const availability = await SR.available({
+            langs: [recognition.lang],
+            processLocally: true,
+          });
+
+          if (availability === "downloadable" || availability === "downloading") {
+            speechInstalling = true;
+            const installed = await SR.install({ langs: [recognition.lang] });
+            speechInstalling = false;
+
+            if (installed) {
+              speechReady = true;
+              console.log(`Installed ${recognition.lang} language pack.`);
+              return;
+            }
+          }
+        }
+
+        // Fallback if local install isn't possible
+        if ("processLocally" in recognition) {
+          recognition.processLocally = false;
+        }
+        speechReady = true;
+      } catch (e) {
+        console.warn("Could not recover from language-not-supported:", e);
+      }
+    }
+  };
+
+  recognition.onend = () => {
+    if (isPlaying && !gameover && speechReady && !speechInstalling) {
+      setTimeout(() => {
+        try {
+          recognition.start();
+        } catch (e) {}
+      }, 0);
+    }
+  };
+
+  return true;
+}
+
+async function setup() {
     // Show start overlay
     startOverlay.classList.remove('hidden');
     gameOverOverlay.classList.add('hidden');
-    
-    // Voice control setup
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.lang = 'en-US';
-        recognition.interimResults = true; // Enable interim results for faster response
-        recognition.maxAlternatives = 1;
 
-        recognition.onresult = (event) => {
-            // Use the resultIndex to get the latest result, whether final or interim
-            const result = event.results[event.results.length - 1];
-            const transcript = result[0].transcript.trim().toLowerCase();
-            
-            // Log for debugging (optional, can be noisy with interim)
-            // console.log('Voice Command:', transcript, 'Final:', result.isFinal);
-            
-            // Process commands immediately
-            if (transcript.includes('up') && snakeDirection.y !== 1) {
-                snakeDirection = { x: 0, y: -1 };
-            } else if (transcript.includes('down') && snakeDirection.y !== -1) {
-                snakeDirection = { x: 0, y: 1 };
-            } else if (transcript.includes('left') && snakeDirection.x !== 1) {
-                snakeDirection = { x: -1, y: 0 };
-            } else if (transcript.includes('right') && snakeDirection.x !== -1) {
-                snakeDirection = { x: 1, y: 0 };
-            }
-        }
-        
-        recognition.onerror = (event) => {
-            console.error('Speech recognition error detected: ' + event.error);
-        }
-        
-        recognition.onend = () => {
-             // Restart strictly if playing and not gameover
-             if (isPlaying && !gameover) {
-                 try { recognition.start(); } catch(e){}
-             }
-        }
+    // Begin preparing speech recognition early
+    try {
+        await setupSpeech();
+    } catch (err) {
+        console.warn("Speech setup failed:", err);
     }
 
-    // Wait for click to start
-    startOverlay.addEventListener('click', startGame);
-    gameOverOverlay.addEventListener('click', startGame);
+    // Ensure listeners are not attached multiple times
+    startOverlay.onclick = startGame;
+    gameOverOverlay.onclick = startGame;
 }
 
 function startGame() {
     console.log("Start Game Clicked");
     initAudio(); // Initialize audio context on first click
     restoreAudio();
-    
+
     // Start Voice
     if (recognition) {
-        try { recognition.start(); } catch(e) {}
+        try { recognition.start(); } catch (e) { }
     }
 
     if (gameInterval) clearInterval(gameInterval);
-    
+
     resetGame();
     isPlaying = true;
     startOverlay.classList.add('hidden');
     gameOverOverlay.classList.add('hidden');
-    
+
     gameInterval = setInterval(draw, 1000 / GAME_FRAME_RATE);
 }
 
@@ -361,9 +512,9 @@ function stopGame() {
 }
 
 function stopAllAudio() {
-    if(appleGain) appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    if(windGain) windGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    if(bodyHumGain) bodyHumGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    if (appleGain) appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    if (windGain) windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    if (bodyHumGain) bodyHumGain.gain.setValueAtTime(0, audioCtx.currentTime);
 }
 
 function restoreAudio() {
@@ -382,18 +533,18 @@ function draw() {
         stopAllAudio();
         // Show gameover screen
         gameOverOverlay.classList.remove('hidden');
-        
+
         // Stop Loop
         clearInterval(gameInterval);
         return;
     }
 
     updateSnake();
-    updateHud(); 
-    
+    updateHud();
+
     drawFood();
     drawSnake();
-    
+
     // Audio Updates
     if (snakePositions.length > 0) {
         const head = snakePositions[0];
@@ -409,7 +560,7 @@ function draw() {
 
 function updateHud() {
     if (snakePositions.length === 0) return;
-    
+
     const head = snakePositions[0];
     scoreEl.textContent = "Score: " + getScore();
     snakePosEl.textContent = `Snake Position: [${head.x}, ${head.y}]`;
@@ -419,7 +570,7 @@ function updateHud() {
 function drawFood() {
     ctx.fillStyle = BACKGROUND_COLOR;
     ctx.strokeStyle = MAIN_COLOR;
-    
+
     ctx.fillRect(objPosition.x, objPosition.y, GRID_SIZE, GRID_SIZE);
     ctx.strokeRect(objPosition.x, objPosition.y, GRID_SIZE, GRID_SIZE);
 }
@@ -451,10 +602,10 @@ function updateSnake() {
     // OR better: To make "Wall Wind" useful, walls should be deadly or at least barriers.
     // However, faithfully porting the original code means keeping wrapping.
     // If wrapping is ON, "Wind" suggests approaching a warp point.
-    
+
     const warped = wrapHeadPosition(newHead);
     if (warped) {
-       // Maybe play a warp sound?
+        // Maybe play a warp sound?
     }
 
     if (hitsSelf(newHead)) {
@@ -492,15 +643,15 @@ function wrapHeadPosition(head) {
         warped = true;
     } else if (head.x > WINDOW_WIDTH - GRID_SIZE) {
         head.x = 0;
-         warped = true;
+        warped = true;
     }
 
     if (head.y < 0) {
         head.y = WINDOW_HEIGHT - GRID_SIZE;
-         warped = true;
+        warped = true;
     } else if (head.y > WINDOW_HEIGHT - GRID_SIZE) {
         head.y = 0;
-         warped = true;
+        warped = true;
     }
     return warped;
 }
@@ -540,14 +691,14 @@ function resetGame() {
 
     snakeDirection = { x: START_DIRECTION_X, y: START_DIRECTION_Y };
     randomizeObjOnGrid();
-    
+
     updateHud();
 }
 
 function endGame() {
     gameover = true;
     gameoverAtMillis = Date.now();
-    
+
     // Stop loop immediately so wind sound stops update
     // But draw() handles audio stop
 }
@@ -592,36 +743,12 @@ function overlaps(p1, p2) {
 }
 
 
-// =========================
-// Voice Control
-// =========================
-
-let recognition = null;
-
-function setupVoiceControl() {
-    // Check browser support
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        console.warn("Speech Recognition API not supported in this browser.");
-        return;
-    }
-}
-// Voice setup integrated directly into setup() now.
-function handleVoiceCommand(command) {}
-
-function startVoiceControl() {}
-
-function stopVoiceControl() {}
-
-// =========================
-// Input
-// =========================
 
 document.addEventListener('keydown', (event) => {
     const key = event.key;
-    const code = event.code; 
-    
-    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(code) > -1) {
+    const code = event.code;
+
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(code) > -1) {
         event.preventDefault();
     }
 
