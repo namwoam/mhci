@@ -5,6 +5,6 @@ tasks:
     desc: Serve the game locally
     dir: .
     cmds:
-      - echo "Serving at http://localhost:8000"
-      - python3 -m http.server 8000
+    - echo "Serving at http://localhost:8000"
+    - python3 -m http.server 8000
     silent: false
