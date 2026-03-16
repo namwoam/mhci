@@ -287,6 +287,43 @@ function setup() {
     startOverlay.classList.remove('hidden');
     gameOverOverlay.classList.add('hidden');
     
+    // Voice control setup
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (event) => {
+            const last = event.results.length - 1;
+            const transcript = event.results[last][0].transcript.trim().toLowerCase();
+            console.log('Voice Command:', transcript);
+            
+            if (transcript.includes('up') && snakeDirection.y !== 1) {
+                snakeDirection = { x: 0, y: -1 };
+            } else if (transcript.includes('down') && snakeDirection.y !== -1) {
+                snakeDirection = { x: 0, y: 1 };
+            } else if (transcript.includes('left') && snakeDirection.x !== 1) {
+                snakeDirection = { x: -1, y: 0 };
+            } else if (transcript.includes('right') && snakeDirection.x !== -1) {
+                snakeDirection = { x: 1, y: 0 };
+            }
+        }
+        
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error detected: ' + event.error);
+        }
+        
+        recognition.onend = () => {
+             // Restart strictly if playing and not gameover
+             if (isPlaying && !gameover) {
+                 try { recognition.start(); } catch(e){}
+             }
+        }
+    }
+
     // Wait for click to start
     startOverlay.addEventListener('click', startGame);
     gameOverOverlay.addEventListener('click', startGame);
@@ -296,6 +333,11 @@ function startGame() {
     console.log("Start Game Clicked");
     initAudio(); // Initialize audio context on first click
     restoreAudio();
+    
+    // Start Voice
+    if (recognition) {
+        try { recognition.start(); } catch(e) {}
+    }
 
     if (gameInterval) clearInterval(gameInterval);
     
@@ -311,6 +353,7 @@ function stopGame() {
     isPlaying = false;
     clearInterval(gameInterval);
     stopAllAudio();
+    if (recognition) recognition.stop();
 }
 
 function stopAllAudio() {
@@ -544,6 +587,27 @@ function overlaps(p1, p2) {
     return Math.abs(p1.x - p2.x) < 0.1 && Math.abs(p1.y - p2.y) < 0.1;
 }
 
+
+// =========================
+// Voice Control
+// =========================
+
+let recognition = null;
+
+function setupVoiceControl() {
+    // Check browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        console.warn("Speech Recognition API not supported in this browser.");
+        return;
+    }
+}
+// Voice setup integrated directly into setup() now.
+function handleVoiceCommand(command) {}
+
+function startVoiceControl() {}
+
+function stopVoiceControl() {}
 
 // =========================
 // Input
