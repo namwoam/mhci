@@ -285,7 +285,31 @@ let isPlaying = false;
 let recognition = null;
 let speechReady = false;
 let speechInstalling = false;
-let pendingDirection = null;
+let pendingDirections = [];
+
+function queueDirection(newDir) {
+    const lastDir = pendingDirections.length > 0 ? pendingDirections[pendingDirections.length - 1] : snakeDirection;
+    
+    // Check if opposite direction (sum of x's is 0 and sum of y's is 0 implies opposite if magnitude is same, 
+    // but here we deal with unit vectors or 0.
+    // 1 + (-1) = 0.
+    // So if x + x = 0 AND y + y = 0, it is 180 turn.
+    if ((newDir.x + lastDir.x === 0) && (newDir.y + lastDir.y === 0)) {
+        return;
+    }
+    
+    // Also ignore duplicate consecutive directions?
+    // Actually no, pressing "UP" when going "UP" does nothing but it's not a reversal.
+    // But if we queue "UP" then "UP", it just keeps going up.
+    // To be safe against spamming filling the buffer:
+    if (newDir.x === lastDir.x && newDir.y === lastDir.y) {
+        return;
+    }
+
+    if (pendingDirections.length < 3) {
+        pendingDirections.push(newDir);
+    }
+}
 
 async function setupSpeech() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -394,14 +418,14 @@ async function setupSpeech() {
 
     // Queue direction for next tick instead of mutating immediately.
     // This feels more stable for Snake.
-    if (command === "up" && snakeDirection.y !== 1) {
-      pendingDirection = { x: 0, y: -1 };
-    } else if (command === "down" && snakeDirection.y !== -1) {
-      pendingDirection = { x: 0, y: 1 };
-    } else if (command === "left" && snakeDirection.x !== 1) {
-      pendingDirection = { x: -1, y: 0 };
-    } else if (command === "right" && snakeDirection.x !== -1) {
-      pendingDirection = { x: 1, y: 0 };
+    if (command === "up") {
+      queueDirection({ x: 0, y: -1 });
+    } else if (command === "down") {
+      queueDirection({ x: 0, y: 1 });
+    } else if (command === "left") {
+      queueDirection({ x: -1, y: 0 });
+    } else if (command === "right") {
+      queueDirection({ x: 1, y: 0 });
     }
   };
 
@@ -579,6 +603,10 @@ function drawSnake() {
 // =========================
 
 function updateSnake() {
+    if (pendingDirections.length > 0) {
+        snakeDirection = pendingDirections.shift();
+    }
+
     let newHead = getNextHeadPosition();
     // Replaced wrapping with Wall Collision for Audio Consistency?
     // The original processing code had wrapHeadPosition().
@@ -673,6 +701,7 @@ function resetGame() {
     gameover = false;
     gameoverAtMillis = -1;
 
+    pendingDirections = [];
     snakePositions = [];
     snakePositions.push(getCenteredStartPosition());
 
@@ -735,20 +764,17 @@ document.addEventListener('keydown', (event) => {
     const key = event.key;
     const code = event.code;
 
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(code) > -1) {
-        event.preventDefault();
-    }
-
-    if ((key === 'a' || code === 'ArrowLeft') && snakeDirection.x !== 1) {
-        snakeDirection = { x: -1, y: 0 };
-    } else if ((key === 'd' || code === 'ArrowRight') && snakeDirection.x !== -1) {
-        snakeDirection = { x: 1, y: 0 };
-    } else if ((key === 's' || code === 'ArrowDown') && snakeDirection.y !== -1) {
-        snakeDirection = { x: 0, y: 1 };
-    } else if ((key === 'w' || code === 'ArrowUp') && snakeDirection.y !== 1) {
-        snakeDirection = { x: 0, y: -1 };
+    if (key === 'a' || code === 'ArrowLeft') {
+        queueDirection({ x: -1, y: 0 });
+    } else if (key === 'd' || code === 'ArrowRight') {
+        queueDirection({ x: 1, y: 0 });
+    } else if (key === 's' || code === 'ArrowDown') {
+        queueDirection({ x: 0, y: 1 });
+    } else if (key === 'w' || code === 'ArrowUp') {
+        queueDirection({ x: 0, y: -1 });
     }
 });
+
 
 // Setup Initial State (Waiting for Click)
 setup();
