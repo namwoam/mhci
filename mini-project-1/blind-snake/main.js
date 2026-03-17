@@ -291,7 +291,7 @@ let pendingDirections = [];
 
 function queueDirection(newDir) {
     const lastDir = pendingDirections.length > 0 ? pendingDirections[pendingDirections.length - 1] : snakeDirection;
-    
+
     // Check if opposite direction (sum of x's is 0 and sum of y's is 0 implies opposite if magnitude is same, 
     // but here we deal with unit vectors or 0.
     // 1 + (-1) = 0.
@@ -299,7 +299,7 @@ function queueDirection(newDir) {
     if ((newDir.x + lastDir.x === 0) && (newDir.y + lastDir.y === 0)) {
         return;
     }
-    
+
     // Also ignore duplicate consecutive directions?
     // Actually no, pressing "UP" when going "UP" does nothing but it's not a reversal.
     // But if we queue "UP" then "UP", it just keeps going up.
@@ -314,201 +314,201 @@ function queueDirection(newDir) {
 }
 
 async function setupSpeech() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    console.warn("SpeechRecognition is not supported in this browser.");
-    if (voiceStatusEl) voiceStatusEl.textContent = "Browser does not support Speech API.";
-    if (voiceStatusEl) voiceStatusEl.style.color = "red";
-    return false;
-  }
-
-  if (voiceStatusEl) voiceStatusEl.textContent = "Initializing Speech...";
-
-  recognition = new SR();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-  recognition.lang = "en-US";
-
-  // Prefer on-device recognition when the browser supports it.
-  // This must be set before start().
-  try {
-    if ("processLocally" in recognition) {
-      recognition.processLocally = true;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+        console.warn("SpeechRecognition is not supported in this browser.");
+        if (voiceStatusEl) voiceStatusEl.textContent = "Browser does not support Speech API.";
+        if (voiceStatusEl) voiceStatusEl.style.color = "red";
+        return false;
     }
-  } catch (e) {
-    console.warn("Unable to enable processLocally:", e);
-  }
 
-  // Install on-device language pack when supported.
-  // MDN recommends checking available() first, then install() if needed.
-  try {
-    if (typeof SR.available === "function" && typeof SR.install === "function") {
-      const availability = await SR.available({
-        langs: [recognition.lang],
-        processLocally: true,
-      });
+    if (voiceStatusEl) voiceStatusEl.textContent = "Initializing Speech...";
 
-      if (availability === "available") {
-        speechReady = true;
-      } else if (availability === "downloadable" || availability === "downloading") {
-        speechInstalling = true;
-        console.log(`Installing speech pack for ${recognition.lang}...`);
+    recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognition.lang = "en-US";
 
-        const installed = await SR.install({
-          langs: [recognition.lang],
-        });
-
-        speechInstalling = false;
-        speechReady = !!installed;
-
-        if (!speechReady) {
-          console.warn(`Language pack install failed for ${recognition.lang}. Falling back to remote if possible.`);
-          if ("processLocally" in recognition) {
-            recognition.processLocally = false;
-          }
-          speechReady = true;
-        }
-      } else {
-        console.warn(`${recognition.lang} is unavailable for on-device speech. Falling back to remote if possible.`);
-        if ("processLocally" in recognition) {
-          recognition.processLocally = false;
-        }
-        speechReady = true;
-      }
-    } else {
-      // Browser does not expose on-device install APIs.
-      // Fall back to normal speech recognition.
-      if ("processLocally" in recognition) {
-        recognition.processLocally = false;
-      }
-      speechReady = true;
-    }
-  } catch (err) {
-    console.warn("Speech pack setup failed, falling back to non-local recognition:", err);
+    // Prefer on-device recognition when the browser supports it.
+    // This must be set before start().
     try {
-      if ("processLocally" in recognition) {
-        recognition.processLocally = false;
-      }
-    } catch (_) {}
-    speechReady = true;
-  }
-
-  let lastCommand = "";
-  let lastCommandTime = 0;
-  const COMMAND_COOLDOWN_MS = 120;
-
-  recognition.onstart = () => {
-      console.log("Speech recognition started");
-      if (voiceStatusEl) {
-          voiceStatusEl.textContent = "Listening...";
-          voiceStatusEl.style.color = "#0f0";
-      }
-  };
-
-  recognition.onend = () => {
-    console.log("Speech recognition ended");
-    if (voiceStatusEl) {
-          voiceStatusEl.textContent = "Standby";
-          voiceStatusEl.style.color = "#888";
-    }
-    
-    if (isPlaying && !gameover && speechReady && !speechInstalling) {
-      setTimeout(() => {
-        try {
-          recognition.start();
-        } catch (e) {}
-      }, 0);
-    }
-  };
-
-  recognition.onresult = (event) => {
-    const i = event.resultIndex;
-    const result = event.results[i];
-    if (!result || !result[0]) return;
-
-    const transcript = result[0].transcript.trim().toLowerCase();
-    
-    // Update UI
-    if (voiceStatusEl) {
-         voiceStatusEl.textContent = `Heard: "${transcript}"`;
-         voiceStatusEl.style.color = "#aaf";
-    }
-
-    console.log("Recognized:", transcript);
-
-    let command = null;
-    if (/\bup\b/.test(transcript)) command = "up";
-    else if (/\bdown\b/.test(transcript)) command = "down";
-    else if (/\bleft\b/.test(transcript)) command = "left";
-    else if (/\bright\b/.test(transcript)) command = "right";
-
-    if (!command) return;
-
-    const now = performance.now();
-    if (command === lastCommand && now - lastCommandTime < COMMAND_COOLDOWN_MS) {
-      return;
-    }
-
-    lastCommand = command;
-    lastCommandTime = now;
-
-    // Queue direction for next tick instead of mutating immediately.
-    // This feels more stable for Snake.
-    if (command === "up") {
-      queueDirection({ x: 0, y: -1 });
-    } else if (command === "down") {
-      queueDirection({ x: 0, y: 1 });
-    } else if (command === "left") {
-      queueDirection({ x: -1, y: 0 });
-    } else if (command === "right") {
-      queueDirection({ x: 1, y: 0 });
-    }
-  };
-
-  recognition.onerror = async (event) => {
-    console.error("Speech recognition error:", event.error);
-    if (voiceStatusEl) {
-        voiceStatusEl.textContent = `Error: ${event.error}`;
-        voiceStatusEl.style.color = "#f55";
-    }
-
-    // Retry installation path if local recognition says language isn't ready.
-    if (event.error === "language-not-supported") {
-      try {
-        if (typeof SR.available === "function" && typeof SR.install === "function") {
-          const availability = await SR.available({
-            langs: [recognition.lang],
-            processLocally: true,
-          });
-
-          if (availability === "downloadable" || availability === "downloading") {
-            speechInstalling = true;
-            const installed = await SR.install({ langs: [recognition.lang] });
-            speechInstalling = false;
-
-            if (installed) {
-              speechReady = true;
-              console.log(`Installed ${recognition.lang} language pack.`);
-              return;
-            }
-          }
-        }
-
-        // Fallback if local install isn't possible
         if ("processLocally" in recognition) {
-          recognition.processLocally = false;
+            recognition.processLocally = true;
         }
-        speechReady = true;
-      } catch (e) {
-        console.warn("Could not recover from language-not-supported:", e);
-      }
+    } catch (e) {
+        console.warn("Unable to enable processLocally:", e);
     }
-  };
+
+    // Install on-device language pack when supported.
+    // MDN recommends checking available() first, then install() if needed.
+    try {
+        if (typeof SR.available === "function" && typeof SR.install === "function") {
+            const availability = await SR.available({
+                langs: [recognition.lang],
+                processLocally: true,
+            });
+
+            if (availability === "available") {
+                speechReady = true;
+            } else if (availability === "downloadable" || availability === "downloading") {
+                speechInstalling = true;
+                console.log(`Installing speech pack for ${recognition.lang}...`);
+
+                const installed = await SR.install({
+                    langs: [recognition.lang],
+                });
+
+                speechInstalling = false;
+                speechReady = !!installed;
+
+                if (!speechReady) {
+                    console.warn(`Language pack install failed for ${recognition.lang}. Falling back to remote if possible.`);
+                    if ("processLocally" in recognition) {
+                        recognition.processLocally = false;
+                    }
+                    speechReady = true;
+                }
+            } else {
+                console.warn(`${recognition.lang} is unavailable for on-device speech. Falling back to remote if possible.`);
+                if ("processLocally" in recognition) {
+                    recognition.processLocally = false;
+                }
+                speechReady = true;
+            }
+        } else {
+            // Browser does not expose on-device install APIs.
+            // Fall back to normal speech recognition.
+            if ("processLocally" in recognition) {
+                recognition.processLocally = false;
+            }
+            speechReady = true;
+        }
+    } catch (err) {
+        console.warn("Speech pack setup failed, falling back to non-local recognition:", err);
+        try {
+            if ("processLocally" in recognition) {
+                recognition.processLocally = false;
+            }
+        } catch (_) { }
+        speechReady = true;
+    }
+
+    let lastCommand = "";
+    let lastCommandTime = 0;
+    const COMMAND_COOLDOWN_MS = 120;
+
+    recognition.onstart = () => {
+        console.log("Speech recognition started");
+        if (voiceStatusEl) {
+            voiceStatusEl.textContent = "Listening...";
+            voiceStatusEl.style.color = "#0f0";
+        }
+    };
+
+    recognition.onend = () => {
+        console.log("Speech recognition ended");
+        if (voiceStatusEl) {
+            voiceStatusEl.textContent = "Standby";
+            voiceStatusEl.style.color = "#888";
+        }
+
+        if (isPlaying && !gameover && speechReady && !speechInstalling) {
+            setTimeout(() => {
+                try {
+                    recognition.start();
+                } catch (e) { }
+            }, 0);
+        }
+    };
+
+    recognition.onresult = (event) => {
+        const i = event.resultIndex;
+        const result = event.results[i];
+        if (!result || !result[0]) return;
+
+        const transcript = result[0].transcript.trim().toLowerCase();
+
+        // Update UI
+        if (voiceStatusEl) {
+            voiceStatusEl.textContent = `Heard: "${transcript}"`;
+            voiceStatusEl.style.color = "#aaf";
+        }
+
+        console.log("Recognized:", transcript);
+
+        let command = null;
+        if (/\bup\b/.test(transcript)) command = "up";
+        else if (/\bdown\b/.test(transcript)) command = "down";
+        else if (/\bleft\b/.test(transcript)) command = "left";
+        else if (/\bright\b/.test(transcript)) command = "right";
+
+        if (!command) return;
+
+        const now = performance.now();
+        if (command === lastCommand && now - lastCommandTime < COMMAND_COOLDOWN_MS) {
+            return;
+        }
+
+        lastCommand = command;
+        lastCommandTime = now;
+
+        // Queue direction for next tick instead of mutating immediately.
+        // This feels more stable for Snake.
+        if (command === "up") {
+            queueDirection({ x: 0, y: -1 });
+        } else if (command === "down") {
+            queueDirection({ x: 0, y: 1 });
+        } else if (command === "left") {
+            queueDirection({ x: -1, y: 0 });
+        } else if (command === "right") {
+            queueDirection({ x: 1, y: 0 });
+        }
+    };
+
+    recognition.onerror = async (event) => {
+        console.error("Speech recognition error:", event.error);
+        if (voiceStatusEl) {
+            voiceStatusEl.textContent = `Error: ${event.error}`;
+            voiceStatusEl.style.color = "#f55";
+        }
+
+        // Retry installation path if local recognition says language isn't ready.
+        if (event.error === "language-not-supported") {
+            try {
+                if (typeof SR.available === "function" && typeof SR.install === "function") {
+                    const availability = await SR.available({
+                        langs: [recognition.lang],
+                        processLocally: true,
+                    });
+
+                    if (availability === "downloadable" || availability === "downloading") {
+                        speechInstalling = true;
+                        const installed = await SR.install({ langs: [recognition.lang] });
+                        speechInstalling = false;
+
+                        if (installed) {
+                            speechReady = true;
+                            console.log(`Installed ${recognition.lang} language pack.`);
+                            return;
+                        }
+                    }
+                }
+
+                // Fallback if local install isn't possible
+                if ("processLocally" in recognition) {
+                    recognition.processLocally = false;
+                }
+                speechReady = true;
+            } catch (e) {
+                console.warn("Could not recover from language-not-supported:", e);
+            }
+        }
+    };
 
 
 
-  return true;
+    return true;
 }
 
 async function setup() {
@@ -544,11 +544,11 @@ function startGame() {
 async function playTutorial() {
     // Ensure game loop is not running
     if (gameInterval) clearInterval(gameInterval);
-   
+
     // Set up dummy state for sounds
-    snakePositions = [{x: 200, y: 200}]; 
-    objPosition = {x: 0, y: 0};
-    snakeDirection = {x: 1, y: 0};
+    snakePositions = [{ x: 200, y: 200 }];
+    objPosition = { x: 0, y: 0 };
+    snakeDirection = { x: 1, y: 0 };
     gameover = true; // Start silenced (stops apple ticking)
 
     // Helper to wait
@@ -556,7 +556,7 @@ async function playTutorial() {
     const speak = (text) => new Promise(resolve => {
         // Cancel any pending speech
         window.speechSynthesis.cancel();
-        
+
         const u = new SpeechSynthesisUtterance(text);
         u.onend = resolve;
         u.onerror = resolve; // Continue on error
@@ -568,12 +568,12 @@ async function playTutorial() {
     // Introduction
     await speak("Welcome to Blind Snake. The game where you rely on your ears.");
     await speak("Control the snake by saying Up, Down, Left, or Right.");
-    
+
     // Direction Demo
     await speak("Every step makes a sound. The pitch and direction tell you where you are going.");
 
     // Up - High Pitch
-    snakeDirection = {x: 0, y: -1}; // Up
+    snakeDirection = { x: 0, y: -1 }; // Up
     await speak("High pitch means Up.");
     playStepSound();
     await wait(600);
@@ -581,7 +581,7 @@ async function playTutorial() {
     await wait(800);
 
     // Down - Low Pitch
-    snakeDirection = {x: 0, y: 1}; // Down
+    snakeDirection = { x: 0, y: 1 }; // Down
     await speak("Low pitch means Down.");
     playStepSound();
     await wait(600);
@@ -589,7 +589,7 @@ async function playTutorial() {
     await wait(800);
 
     // Left - Left Pan
-    snakeDirection = {x: -1, y: 0}; // Left
+    snakeDirection = { x: -1, y: 0 }; // Left
     await speak("Sound to your left means Left.");
     playStepSound();
     await wait(600);
@@ -597,7 +597,7 @@ async function playTutorial() {
     await wait(800);
 
     // Right - Right Pan
-    snakeDirection = {x: 1, y: 0}; // Right
+    snakeDirection = { x: 1, y: 0 }; // Right
     await speak("Sound to your right means Right.");
     playStepSound();
     await wait(600);
@@ -607,51 +607,53 @@ async function playTutorial() {
     // Apple Demo
     gameover = false; // Enable sounds for Apple Demo
     await speak("Your goal is to find the apple. Listen to the ticking sound.");
-    
+
     // Panning - Left
-    snakePositions = [{x: 200, y: 200}]; // Center head
-    objPosition = {x: 50, y: 200}; // Apple Left
+    snakePositions = [{ x: 200, y: 200 }]; // Center head
+    objPosition = { x: 50, y: 200 }; // Apple Left
     updateAppleAudio(snakePositions[0]);
     await speak("If the apple is on the left, you hear it on the left.");
     await wait(2000);
 
     // Panning - Right
-    objPosition = {x: 350, y: 200}; // Apple Right
+    objPosition = { x: 350, y: 200 }; // Apple Right
     updateAppleAudio(snakePositions[0]);
     await speak("If on the right, you hear it on the right.");
     await wait(2000);
 
     // Pitch - Up (High Pitch)
-    objPosition = {x: 200, y: 50}; // Apple Above
+    objPosition = { x: 200, y: 50 }; // Apple Above
     updateAppleAudio(snakePositions[0]);
-    await speak("A higher pitch means the apple is above you.");
+    await speak("A higher pitch means the apple is at the top of the screen.");
     await wait(2000);
 
     // Pitch - Down (Low Pitch)
-    objPosition = {x: 200, y: 350}; // Apple Below
+    objPosition = { x: 200, y: 350 }; // Apple Below
     updateAppleAudio(snakePositions[0]);
-    await speak("A lower pitch means the apple is below.");
+    await speak("A lower pitch means the apple is at the bottom of the screen.");
     await wait(2000);
 
     // Distance - Far
     await speak("Finally, the ticking speed indicates distance.");
-    
-    objPosition = {x: 0, y: 0};
-    snakePositions = [{x: 300, y: 300}];
-    updateAppleAudio(snakePositions[0]); 
+
+    objPosition = { x: 0, y: 0 };
+    snakePositions = [{ x: 300, y: 300 }];
+    updateAppleAudio(snakePositions[0]);
     await speak("Slow means far away.");
     await wait(2500);
 
     // Distance - Close
     await speak("Fast means you are close.");
-    
-    snakePositions = [{x: 20, y: 20}]; // Very close
-    objPosition = {x: 0, y: 0};
+
+    snakePositions = [{ x: 20, y: 20 }]; // Very close
+    objPosition = { x: 0, y: 0 };
     updateAppleAudio(snakePositions[0]);
     await wait(2500);
 
     // Mute apple
     if (appleGain) appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+    await speak("So to find the apple, listen to where the sound is coming from, how high or low it is, and how fast it's ticking.");
 
     gameover = true; // Silence for next demo
 
@@ -662,8 +664,8 @@ async function playTutorial() {
 
     // Wall Demo
     await speak("You will hear a wind sound when you cross the edge of the world");
-    
-    
+
+
     // directly play wind sound to demonstrate
     if (windGain) {
         windGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
@@ -676,7 +678,7 @@ async function playTutorial() {
     // Mute wind
     if (windGain) windGain.gain.setValueAtTime(0, audioCtx.currentTime);
 
-    await speak("Good luck. Game starting now.");
+    await speak("Good luck. Game starting now, the first apple is to the right.");
     gameover = false; // Enable game sounds
 }
 
@@ -887,12 +889,12 @@ function resetGame() {
     snakePositions.push(getCenteredStartPosition());
 
     snakeDirection = { x: START_DIRECTION_X, y: START_DIRECTION_Y };
-    
+
     // First apple always to the right to guarantee a point
     // Center is ~200. +100px = 300px.
     objPosition.x = snakePositions[0].x + (GRID_SIZE * 10);
     objPosition.y = snakePositions[0].y;
-    
+
     // Ensure bounds
     if (objPosition.x >= WINDOW_WIDTH) objPosition.x = WINDOW_WIDTH - GRID_SIZE;
 
