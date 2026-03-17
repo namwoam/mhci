@@ -12,7 +12,7 @@ const MAIN_COLOR = "#FFFFFF";
 const GRID_SIZE = 20;
 const START_DIRECTION_X = 1;
 const START_DIRECTION_Y = 0;
-const GAME_FRAME_RATE = 3;
+const GAME_FRAME_RATE = 2;
 
 // Timing settings
 const GAME_OVER_DELAY_MS = 2000;
