@@ -24,6 +24,7 @@ const GAME_OVER_DELAY_MS = 2000;
 
 let gameover = false;
 let gameoverAtMillis = -1;
+let hasPlayedTutorial = false;
 
 // snakePositions[0] is the head
 let snakePositions = [];
@@ -532,6 +533,142 @@ function startGame() {
     initAudio(); // Initialize audio context on first click
     restoreAudio();
 
+    if (!hasPlayedTutorial) {
+        hasPlayedTutorial = true;
+        playTutorial().then(runGame);
+    } else {
+        runGame();
+    }
+}
+
+async function playTutorial() {
+    // Ensure game loop is not running
+    if (gameInterval) clearInterval(gameInterval);
+   
+    // Set up dummy state for sounds
+    snakePositions = [{x: 200, y: 200}]; 
+    objPosition = {x: 0, y: 0};
+    snakeDirection = {x: 1, y: 0};
+    gameover = false; // Enable sounds to work
+
+    // Helper to wait
+    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    const speak = (text) => new Promise(resolve => {
+        // Cancel any pending speech
+        window.speechSynthesis.cancel();
+        
+        const u = new SpeechSynthesisUtterance(text);
+        u.onend = resolve;
+        u.onerror = resolve; // Continue on error
+        window.speechSynthesis.speak(u);
+    });
+
+    console.log("Starting Tutorial");
+
+    // Introduction
+    await speak("Welcome to Blind Snake. The game where you rely on your ears.");
+    await speak("Control the snake by saying Up, Down, Left, or Right.");
+    
+    // Direction Demo
+    await speak("Every step makes a sound. The pitch and direction tell you where you are going.");
+
+    // Up - High Pitch
+    snakeDirection = {x: 0, y: -1}; // Up
+    await speak("High pitch means Up.");
+    playStepSound();
+    await wait(600);
+    playStepSound();
+    await wait(800);
+
+    // Down - Low Pitch
+    snakeDirection = {x: 0, y: 1}; // Down
+    await speak("Low pitch means Down.");
+    playStepSound();
+    await wait(600);
+    playStepSound();
+    await wait(800);
+
+    // Left - Left Pan
+    snakeDirection = {x: -1, y: 0}; // Left
+    await speak("Sound to your left means Left.");
+    playStepSound();
+    await wait(600);
+    playStepSound();
+    await wait(800);
+
+    // Right - Right Pan
+    snakeDirection = {x: 1, y: 0}; // Right
+    await speak("Sound to your right means Right.");
+    playStepSound();
+    await wait(600);
+    playStepSound();
+    await wait(1000);
+
+    // Apple Demo
+    await speak("Your goal is to find the apple. Listen to the ticking sound.");
+    
+    // Panning - Left
+    snakePositions = [{x: 200, y: 200}]; // Center head
+    objPosition = {x: 50, y: 200}; // Apple Left
+    updateAppleAudio(snakePositions[0]);
+    await speak("If the apple is on the left, you hear it on the left.");
+    await wait(2000);
+
+    // Panning - Right
+    objPosition = {x: 350, y: 200}; // Apple Right
+    updateAppleAudio(snakePositions[0]);
+    await speak("If on the right, you hear it on the right.");
+    await wait(2000);
+
+    // Pitch - Up (High Pitch)
+    objPosition = {x: 200, y: 50}; // Apple Above
+    updateAppleAudio(snakePositions[0]);
+    await speak("A higher pitch means the apple is above you.");
+    await wait(2000);
+
+    // Pitch - Down (Low Pitch)
+    objPosition = {x: 200, y: 350}; // Apple Below
+    updateAppleAudio(snakePositions[0]);
+    await speak("A lower pitch means the apple is below.");
+    await wait(2000);
+
+    // Distance - Far
+    await speak("Finally, the ticking speed indicates distance.");
+    
+    objPosition = {x: 0, y: 0};
+    snakePositions = [{x: 300, y: 300}];
+    updateAppleAudio(snakePositions[0]); 
+    await speak("Slow means far away.");
+    await wait(2500);
+
+    // Distance - Close
+    await speak("Fast means you are close.");
+    
+    snakePositions = [{x: 20, y: 20}]; // Very close
+    objPosition = {x: 0, y: 0};
+    updateAppleAudio(snakePositions[0]);
+    await wait(2500);
+
+    // Mute apple
+    if (appleGain) appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+    // Wall Demo
+    await speak("You will hear a wind sound when you cross the edge of the world");
+    
+    // Near Wall
+    // Wind triggers if distToWall < GRID_SIZE * 4 (80px)
+    snakePositions = [{x: 20, y: 200}]; 
+    snakeDirection = {x: -1, y: 0}; // Moving Left towards 0
+    updateWallAudio(snakePositions[0]);
+    await wait(2500);
+
+    // Mute wind
+    if (windGain) windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+
+    await speak("Good luck. Game starting now.");
+}
+
+function runGame() {
     // Start Voice
     if (recognition) {
         try { recognition.start(); } catch (e) { }
