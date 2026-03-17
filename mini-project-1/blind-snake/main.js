@@ -25,6 +25,7 @@ const GAME_OVER_DELAY_MS = 2000;
 let gameover = false;
 let gameoverAtMillis = -1;
 let hasPlayedTutorial = false;
+let isTutorialPlaying = false;
 
 // snakePositions[0] is the head
 let snakePositions = [];
@@ -529,13 +530,19 @@ async function setup() {
 }
 
 function startGame() {
+    if (isTutorialPlaying || isPlaying) return;
+
     console.log("Start Game Clicked");
     initAudio(); // Initialize audio context on first click
     restoreAudio();
 
     if (!hasPlayedTutorial) {
         hasPlayedTutorial = true;
-        playTutorial().then(runGame);
+        isTutorialPlaying = true;
+        playTutorial().then(() => {
+            isTutorialPlaying = false;
+            runGame();
+        });
     } else {
         runGame();
     }
