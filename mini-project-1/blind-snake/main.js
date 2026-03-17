@@ -549,7 +549,7 @@ async function playTutorial() {
     snakePositions = [{x: 200, y: 200}]; 
     objPosition = {x: 0, y: 0};
     snakeDirection = {x: 1, y: 0};
-    gameover = false; // Enable sounds to work
+    gameover = true; // Start silenced (stops apple ticking)
 
     // Helper to wait
     const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -605,6 +605,7 @@ async function playTutorial() {
     await wait(1000);
 
     // Apple Demo
+    gameover = false; // Enable sounds for Apple Demo
     await speak("Your goal is to find the apple. Listen to the ticking sound.");
     
     // Panning - Left
@@ -652,20 +653,31 @@ async function playTutorial() {
     // Mute apple
     if (appleGain) appleGain.gain.setValueAtTime(0, audioCtx.currentTime);
 
+    gameover = true; // Silence for next demo
+
+    // Eat Sound Demo
+    await speak("When you get a point, you will hear this.");
+    playEatSound();
+    await wait(1500);
+
     // Wall Demo
     await speak("You will hear a wind sound when you cross the edge of the world");
     
-    // Near Wall
-    // Wind triggers if distToWall < GRID_SIZE * 4 (80px)
-    snakePositions = [{x: 20, y: 200}]; 
-    snakeDirection = {x: -1, y: 0}; // Moving Left towards 0
-    updateWallAudio(snakePositions[0]);
+    
+    // directly play wind sound to demonstrate
+    if (windGain) {
+        windGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        setTimeout(() => {
+            if (windGain) windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        }, 2000);
+    }
     await wait(2500);
 
     // Mute wind
     if (windGain) windGain.gain.setValueAtTime(0, audioCtx.currentTime);
 
     await speak("Good luck. Game starting now.");
+    gameover = false; // Enable game sounds
 }
 
 function runGame() {
