@@ -310,20 +310,6 @@ async function setupSpeech() {
     console.warn("Unable to enable processLocally:", e);
   }
 
-  // Optional contextual biasing for the tiny command vocabulary.
-  try {
-    if ("phrases" in recognition && "SpeechRecognitionPhrase" in window) {
-      recognition.phrases = [
-        new window.SpeechRecognitionPhrase("up", 8.0),
-        new window.SpeechRecognitionPhrase("down", 8.0),
-        new window.SpeechRecognitionPhrase("left", 8.0),
-        new window.SpeechRecognitionPhrase("right", 8.0),
-      ];
-    }
-  } catch (e) {
-    console.warn("Unable to set phrase biasing:", e);
-  }
-
   // Install on-device language pack when supported.
   // MDN recommends checking available() first, then install() if needed.
   try {
@@ -388,6 +374,7 @@ async function setupSpeech() {
     if (!result || !result[0]) return;
 
     const transcript = result[0].transcript.trim().toLowerCase();
+    console.log("Recognized:", transcript);
 
     let command = null;
     if (/\bup\b/.test(transcript)) command = "up";
