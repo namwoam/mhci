@@ -760,20 +760,7 @@ function overlaps(p1, p2) {
 
 
 
-document.addEventListener('keydown', (event) => {
-    const key = event.key;
-    const code = event.code;
 
-    if (key === 'a' || code === 'ArrowLeft') {
-        queueDirection({ x: -1, y: 0 });
-    } else if (key === 'd' || code === 'ArrowRight') {
-        queueDirection({ x: 1, y: 0 });
-    } else if (key === 's' || code === 'ArrowDown') {
-        queueDirection({ x: 0, y: 1 });
-    } else if (key === 'w' || code === 'ArrowUp') {
-        queueDirection({ x: 0, y: -1 });
-    }
-});
 
 
 // Setup Initial State (Waiting for Click)
