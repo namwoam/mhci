@@ -887,7 +887,14 @@ function resetGame() {
     snakePositions.push(getCenteredStartPosition());
 
     snakeDirection = { x: START_DIRECTION_X, y: START_DIRECTION_Y };
-    randomizeObjOnGrid();
+    
+    // First apple always to the right to guarantee a point
+    // Center is ~200. +100px = 300px.
+    objPosition.x = snakePositions[0].x + (GRID_SIZE * 10);
+    objPosition.y = snakePositions[0].y;
+    
+    // Ensure bounds
+    if (objPosition.x >= WINDOW_WIDTH) objPosition.x = WINDOW_WIDTH - GRID_SIZE;
 
     updateHud();
 }
