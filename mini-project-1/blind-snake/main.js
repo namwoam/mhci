@@ -271,6 +271,7 @@ const scoreEl = document.getElementById('score');
 const snakePosEl = document.getElementById('snakePos');
 const snakeDirEl = document.getElementById('snakeDir');
 const applePosEl = document.getElementById('applePos');
+const voiceStatusEl = document.getElementById('voiceStatus');
 
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const startOverlay = document.getElementById('startOverlay');
@@ -315,8 +316,12 @@ async function setupSpeech() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     console.warn("SpeechRecognition is not supported in this browser.");
+    if (voiceStatusEl) voiceStatusEl.textContent = "Browser does not support Speech API.";
+    if (voiceStatusEl) voiceStatusEl.style.color = "red";
     return false;
   }
+
+  if (voiceStatusEl) voiceStatusEl.textContent = "Initializing Speech...";
 
   recognition = new SR();
   recognition.continuous = true;
@@ -392,12 +397,43 @@ async function setupSpeech() {
   let lastCommandTime = 0;
   const COMMAND_COOLDOWN_MS = 120;
 
+  recognition.onstart = () => {
+      console.log("Speech recognition started");
+      if (voiceStatusEl) {
+          voiceStatusEl.textContent = "Listening...";
+          voiceStatusEl.style.color = "#0f0";
+      }
+  };
+
+  recognition.onend = () => {
+    console.log("Speech recognition ended");
+    if (voiceStatusEl) {
+          voiceStatusEl.textContent = "Standby";
+          voiceStatusEl.style.color = "#888";
+    }
+    
+    if (isPlaying && !gameover && speechReady && !speechInstalling) {
+      setTimeout(() => {
+        try {
+          recognition.start();
+        } catch (e) {}
+      }, 0);
+    }
+  };
+
   recognition.onresult = (event) => {
     const i = event.resultIndex;
     const result = event.results[i];
     if (!result || !result[0]) return;
 
     const transcript = result[0].transcript.trim().toLowerCase();
+    
+    // Update UI
+    if (voiceStatusEl) {
+         voiceStatusEl.textContent = `Heard: "${transcript}"`;
+         voiceStatusEl.style.color = "#aaf";
+    }
+
     console.log("Recognized:", transcript);
 
     let command = null;
@@ -431,6 +467,10 @@ async function setupSpeech() {
 
   recognition.onerror = async (event) => {
     console.error("Speech recognition error:", event.error);
+    if (voiceStatusEl) {
+        voiceStatusEl.textContent = `Error: ${event.error}`;
+        voiceStatusEl.style.color = "#f55";
+    }
 
     // Retry installation path if local recognition says language isn't ready.
     if (event.error === "language-not-supported") {
@@ -465,15 +505,7 @@ async function setupSpeech() {
     }
   };
 
-  recognition.onend = () => {
-    if (isPlaying && !gameover && speechReady && !speechInstalling) {
-      setTimeout(() => {
-        try {
-          recognition.start();
-        } catch (e) {}
-      }, 0);
-    }
-  };
+
 
   return true;
 }
