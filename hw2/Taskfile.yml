@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+  run:
+    desc: Run head-mouse controller
+    dir: .
+    cmds:
+    - poetry run python main.py
+    silent: false
