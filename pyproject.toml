@@ -13,7 +13,9 @@ dependencies = [
     "matplotlib (>=3.10.8,<4.0.0)",
     "scipy (>=1.17.1,<2.0.0)",
     "mediapipe (>=0.10.33,<0.11.0)",
-    "pyautogui (>=0.9.54,<0.10.0)"
+    "pyautogui (>=0.9.54,<0.10.0)",
+    "scikit-learn (>=1.8.0,<2.0.0)",
+    "filterpy (>=1.4.5,<2.0.0)"
 ]
 
 
