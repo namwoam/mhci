@@ -20,6 +20,7 @@ int[] experimentSequence;
 int trialIndex = -1;
 boolean experimentRunning = false;
 boolean waitingPrediction = false;
+boolean waitingTrainingNext = false;
 int currentEmojiId = -1;
 
 IntList resultSeq = new IntList();
@@ -39,18 +40,19 @@ void draw() {
   text("Emoji Experiment Instructions", 20, 40);
   text("1) Press E to start (5 training + 15 testing)", 20, 70);
   text("2) Watch the robot draw an emoji", 20, 100);
-  text("3) Enter your guess: 1-5", 20, 130);
-  text("   1 smile  2 wink  3 surprised  4 sad  5 embarrassed", 20, 155);
+  text("3) Training: press Space for next", 20, 130);
+  text("4) Testing: enter your guess 1-5", 20, 150);
+  text("   1 smile  2 wink  3 surprised  4 sad  5 embarrassed", 20, 170);
 
   if (!experimentRunning) {
-    text("Status: idle", 20, 190);
+    text("Status: idle", 20, 205);
   } else {
     String phase = trialIndex < 5 ? "training" : "testing";
     String status = waitingPrediction ? "waiting prediction (press 1-5)" : "drawing";
-    text("Status: " + phase + " trial " + (trialIndex + 1) + "/20", 20, 190);
-    text("State: " + status, 20, 215);
+    text("Status: " + phase + " trial " + (trialIndex + 1) + "/20", 20, 205);
+    text("State: " + status, 20, 230);
     if (trialIndex < 5 && currentEmojiId != -1) {
-      text("Training emoji: " + emojiName(currentEmojiId), 20, 240);
+      text("Training emoji: " + emojiName(currentEmojiId), 20, 255);
     }
   }
 }
@@ -59,6 +61,11 @@ void keyPressed() {
 
   if (!experimentRunning && (key == 'e' || key == 'E')) {
     startExperiment();
+    return;
+  }
+
+  if (experimentRunning && waitingTrainingNext && key == ' ') {
+    advanceTrainingStep();
     return;
   }
 
@@ -81,6 +88,7 @@ void startExperiment() {
   trialIndex = 0;
   experimentRunning = true;
   waitingPrediction = false;
+  waitingTrainingNext = false;
 
   println("Experiment started: 5 training + 15 testing trials");
   runCurrentTrial();
@@ -116,10 +124,28 @@ void runCurrentTrial() {
   currentEmojiId = gt;
   println("Trial " + (trialIndex + 1) + ": draw " + emojiName(gt));
   drawEmojiById(gt);
-  waitingPrediction = true;
+
+  if (trialIndex < 5) {
+    waitingTrainingNext = true;
+    waitingPrediction = false;
+    println("Training: press Space for next trial");
+  } else {
+    waitingTrainingNext = false;
+    waitingPrediction = true;
+    println("Testing: enter prediction 1-5");
+  }
 }
 
 void storePredictionAndAdvance(int predictedEmoji) {
+  recordTrialAndAdvance(predictedEmoji);
+}
+
+void advanceTrainingStep() {
+  // Training trials don't collect a response; keep predicted as unknown.
+  recordTrialAndAdvance(0);
+}
+
+void recordTrialAndAdvance(int predictedEmoji) {
   int gt = experimentSequence[trialIndex];
   int seqNo = trialIndex + 1;
 
@@ -134,6 +160,7 @@ void storePredictionAndAdvance(int predictedEmoji) {
   );
 
   waitingPrediction = false;
+  waitingTrainingNext = false;
   trialIndex++;
 
   if (trialIndex >= experimentSequence.length) {
@@ -146,6 +173,7 @@ void storePredictionAndAdvance(int predictedEmoji) {
 void finishExperimentAndSave() {
   experimentRunning = false;
   waitingPrediction = false;
+  waitingTrainingNext = false;
   currentEmojiId = -1;
 
   String timestamp =
