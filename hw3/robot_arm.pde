@@ -20,6 +20,7 @@ int[] experimentSequence;
 int trialIndex = -1;
 boolean experimentRunning = false;
 boolean waitingPrediction = false;
+int currentEmojiId = -1;
 
 IntList resultSeq = new IntList();
 IntList resultGroundTruth = new IntList();
@@ -35,17 +36,22 @@ void setup() {
 void draw() {
   background(255);
   fill(0);
-  text("Press arrow keys to test move fuctions", 20, 50);
-  text("Press Z X C to rotate end effector", 20, 80);
-  text("Press 1-5 to draw emoji patterns", 20, 110);
-  text("Press - / = to change speed", 20, 140);
-  text("Current stroke speed: " + nf(STROKE_SPEED, 0, 1), 20, 170);
-  text("Press E to start full experiment", 20, 200);
+  text("Emoji Experiment Instructions", 20, 40);
+  text("1) Press E to start (5 training + 15 testing)", 20, 70);
+  text("2) Watch the robot draw an emoji", 20, 100);
+  text("3) Enter your guess: 1-5", 20, 130);
+  text("   1 smile  2 wink  3 surprised  4 sad  5 embarrassed", 20, 155);
 
-  if (experimentRunning) {
+  if (!experimentRunning) {
+    text("Status: idle", 20, 190);
+  } else {
     String phase = trialIndex < 5 ? "training" : "testing";
     String status = waitingPrediction ? "waiting prediction (press 1-5)" : "drawing";
-    text("Experiment: " + phase + " " + (trialIndex + 1) + "/20 - " + status, 20, 230);
+    text("Status: " + phase + " trial " + (trialIndex + 1) + "/20", 20, 190);
+    text("State: " + status, 20, 215);
+    if (trialIndex < 5 && currentEmojiId != -1) {
+      text("Training emoji: " + emojiName(currentEmojiId), 20, 240);
+    }
   }
 }
 
@@ -60,47 +66,6 @@ void keyPressed() {
     int predictedEmoji = (key - '0');
     storePredictionAndAdvance(predictedEmoji);
     return;
-  }
-
-  if (key == CODED) {
-    // predefined positions, feel free to change
-    if (keyCode == UP) {
-      robotMoveAtConfiguredSpeed(0, 100, 80);
-    } else if (keyCode == DOWN) {
-      robotMoveAtConfiguredSpeed(0, 100, 10);
-    } else if (keyCode == LEFT) {
-      robotMoveAtConfiguredSpeed(-50, 80, 50);
-    } else if (keyCode == RIGHT) {
-      robotMoveAtConfiguredSpeed(50, 80, 50);
-    }
-  } else {
-    // home position
-    if (key == 'h') {
-      robotMoveAtConfiguredSpeed(0, 100, 50);
-    // rotate the cube
-    } else if (key == 'z') {
-      sendClawCommand(0);
-    } else if (key == 'x') {
-      sendClawCommand(90);
-    } else if (key == 'c') {
-      sendClawCommand(180);
-    } else if (key == '1') {
-      robotDrawSmile();
-    } else if (key == '2') {
-      robotDrawWink();
-    } else if (key == '3') {
-      robotDrawSurprised();
-    } else if (key == '4') {
-      robotDrawSad();
-    } else if (key == '5') {
-      robotDrawEmbarrassed();
-    } else if (key == '-') {
-      STROKE_SPEED = max(4.0, STROKE_SPEED - 2.0);
-      println("Stroke speed: " + STROKE_SPEED);
-    } else if (key == '=' || key == '+') {
-      STROKE_SPEED = min(40.0, STROKE_SPEED + 2.0);
-      println("Stroke speed: " + STROKE_SPEED);
-    }
   }
 }
 
@@ -148,6 +113,7 @@ void runCurrentTrial() {
   }
 
   int gt = experimentSequence[trialIndex];
+  currentEmojiId = gt;
   println("Trial " + (trialIndex + 1) + ": draw " + emojiName(gt));
   drawEmojiById(gt);
   waitingPrediction = true;
@@ -180,6 +146,7 @@ void storePredictionAndAdvance(int predictedEmoji) {
 void finishExperimentAndSave() {
   experimentRunning = false;
   waitingPrediction = false;
+  currentEmojiId = -1;
 
   String timestamp =
     nf(year(), 4) +
