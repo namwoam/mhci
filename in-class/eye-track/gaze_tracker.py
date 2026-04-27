@@ -73,6 +73,9 @@ kalman_filter.P = np.eye(4, dtype=np.float32) * 1.0
 kalman_filter.x = np.zeros((4, 1), dtype=np.float32)
 
 
+draw_mode = False
+
+
 def get_eye_vector(landmarks):
     """Calculates the relative position of the iris center within eye corners."""
     # Left Eye indices
@@ -114,7 +117,8 @@ with FaceLandmarker.create_from_options(options) as landmarker:
         last_timestamp_ms = timestamp_ms
         result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-        screen_canvas = np.zeros((SCREEN_H, SCREEN_W, 3), dtype=np.uint8)
+        if not draw_mode:
+            screen_canvas = np.zeros((SCREEN_H, SCREEN_W, 3), dtype=np.uint8)
 
         if result.face_landmarks:
             vec = get_eye_vector(result.face_landmarks[0])
@@ -151,6 +155,8 @@ with FaceLandmarker.create_from_options(options) as landmarker:
         key = cv2.waitKey(1) & 0xFF
         if key == 27:
             break
+        elif key == ord("d"):
+            draw_mode = not draw_mode
 
 cap.release()
 cv2.destroyAllWindows()
