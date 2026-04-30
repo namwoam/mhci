@@ -1,0 +1,16 @@
+version: '3'
+
+tasks:
+  run:
+    desc: Play raw.mp4 in realtime with audio and send commands over serial
+    dir: .
+    cmds:
+    - poetry run python control.py --video raw.mp4 --commands command.csv
+    silent: false
+
+  render:
+    desc: Render sim.mp4 from raw.mp4 and command.csv
+    dir: .
+    cmds:
+    - poetry run python control.py --render --video raw.mp4 --commands command.csv --output sim.mp4
+    silent: false

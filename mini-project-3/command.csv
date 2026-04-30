@@ -1,0 +1,11 @@
+timestamp_s,action,x,y,z,theta_deg,duration_s,label
+0.00,move,0,100,50,,0.00,home
+1.50,move,20,110,60,,2.50,lift right
+5.00,rotate,,,,25,2.00,open claw
+8.00,move,35,95,55,,3.00,front right
+12.00,rotate,,,, -20,2.50,tilt claw
+16.00,move,-25,105,65,,4.00,left high
+22.00,rotate,,,,45,3.00,swing claw
+27.00,move,-10,90,50,,3.50,lower center
+32.00,move,0,100,50,,2.00,return home
+36.00,wait,,,,,4.40,hold until end
